@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AWS Cloud Club | N7 ENSET</title>
+    <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+    
+    <style>
+        /* --- CSS VARIABLES --- */
+        :root {
+            --bg-color: #ffffff;
+            --text-header: #111111;
+            --text-body: #666666;
+            --card-bg: rgba(255, 255, 255, 0.6);
+            --card-border: rgba(255, 255, 255, 0.4);
+            --input-bg: rgba(255, 255, 255, 0.9);
+            --input-border: #e0e0e0;
+            --input-text: #1e1e1e;
+            --accent-color: #4285f4;
+            --button-bg: #000000;
+            --button-text: #ffffff;
+            --qr-bg: #ffffff;
+            --particle-color: 66, 133, 244;
+        }
+
+        [data-theme="dark"] {
+            --bg-color: #0a0a0a;
+            --text-header: #ffffff;
+            --text-body: #a0a0a0;
+            --card-bg: rgba(20, 20, 20, 0.6);
+            --card-border: rgba(255, 255, 255, 0.1);
+            --input-bg: rgba(40, 40, 40, 0.8);
+            --input-border: #333333;
+            --input-text: #ffffff;
+            --accent-color: #6ba4ff;
+            --button-bg: #ffffff;
+            --button-text: #000000;
+            --qr-bg: #ffffff;
+            --particle-color: 100, 160, 255;
+        }
+
+        /* --- CORE STYLES --- */
+        body {
+            margin: 0; overflow: hidden; font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color); transition: background-color 0.5s ease;
+            height: 100vh; display: flex; flex-direction: column; align-items: center;
+        }
+
+        #bg-canvas { position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1; }
+
+        /* --- LAYOUT --- */
+        .header { text-align: center; margin-top: 6vh; margin-bottom: 4vh; z-index: 10; }
+        .header h3 { color: var(--accent-color); text-transform: uppercase; letter-spacing: 2px; font-size: 0.9rem; font-weight: 800; margin-bottom: 10px; }
+        .header h1 { color: var(--text-header); font-size: 4rem; font-weight: 900; line-height: 1; margin: 0; }
+
+        .main-container { display: flex; gap: 60px; align-items: flex-start; z-index: 10; padding: 20px; }
+
+        .card {
+            background: var(--card-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+            border: 1px solid var(--card-border); border-radius: 30px; padding: 40px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.05); transition: all 0.3s ease;
+        }
+        .form-card { width: 420px; }
+        .qr-card { width: 320px; text-align: center; }
+
+        /* --- FORM ELEMENTS --- */
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; font-size: 0.85rem; color: var(--text-body); font-weight: 600; }
+        input, select {
+            width: 100%; padding: 16px 24px; background: var(--input-bg);
+            border: 2px solid var(--input-border); border-radius: 50px; color: var(--input-text);
+            font-family: 'Inter', sans-serif; font-size: 1rem; outline: none; box-sizing: border-box; transition: 0.3s;
+        }
+        input:focus, select:focus { border-color: var(--accent-color); }
+
+        .btn-submit {
+            width: 100%; padding: 18px; background: var(--button-bg); color: var(--button-text);
+            border: none; border-radius: 50px; font-weight: 800; font-size: 1.1rem;
+            cursor: pointer; transition: 0.3s; margin-top: 10px;
+        }
+        .btn-submit:hover { transform: translateY(-3px); box-shadow: 0 10px 20px rgba(0,0,0,0.15); }
+
+        /* --- QR --- */
+        .qr-img-container { background: var(--qr-bg); padding: 15px; border-radius: 20px; display: inline-block; margin-bottom: 20px; }
+        .qr-card img { width: 200px; display: block; }
+        .qr-card h3 { color: var(--text-header); margin-bottom: 5px; }
+        .qr-card p { color: var(--text-body); margin-top: 0; }
+        .counter-pill {
+            display: inline-block; margin-top: 25px; padding: 12px 30px;
+            background: rgba(66, 133, 244, 0.1); color: var(--accent-color);
+            border-radius: 50px; font-weight: 800;
+        }
+
+        /* --- THEME TOGGLE --- */
+        .theme-toggle {
+            position: fixed; top: 30px; right: 40px; background: var(--card-bg);
+            border: 1px solid var(--card-border); padding: 12px; border-radius: 50%;
+            cursor: pointer; backdrop-filter: blur(10px); z-index: 100; transition: transform 0.3s ease;
+        }
+        .theme-toggle:hover { transform: scale(1.1) rotate(15deg); }
+        .theme-toggle svg { width: 24px; height: 24px; fill: var(--text-header); }
+        .hidden { display: none; }
+        .flex-row { display: flex; gap: 15px; } .flex-col { flex: 1; }
+
+        /* --- MODAL (POPUP) STYLES --- */
+        .modal-overlay {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0, 0, 0, 0.2); 
+            backdrop-filter: blur(15px); -webkit-backdrop-filter: blur(15px);
+            z-index: 999;
+            display: flex; justify-content: center; align-items: center;
+            opacity: 0; pointer-events: none;
+            transition: opacity 0.3s ease;
+            cursor: pointer;
+        }
+
+        .modal-overlay.active { opacity: 1; pointer-events: all; }
+
+        .modal-content {
+            background: var(--bg-color); padding: 40px 60px; border-radius: 30px;
+            text-align: center; box-shadow: 0 30px 60px rgba(0,0,0,0.3);
+            border: 1px solid var(--card-border);
+            transform: scale(0.8); transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            cursor: default;
+        }
+
+        .modal-overlay.active .modal-content { transform: scale(1); }
+        .modal-icon { font-size: 3rem; margin-bottom: 20px; }
+        .modal-title { font-size: 2rem; font-weight: 900; color: var(--text-header); margin: 0 0 10px 0; }
+        .modal-text { color: var(--text-body); font-size: 1.1rem; }
+    </style>
+</head>
+<body>
+
+    <canvas id="bg-canvas"></canvas>
+
+    <button class="theme-toggle" onclick="toggleTheme()">
+        <svg id="sun-icon" class="hidden" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7c-2.76 0-5 2.24-5 5s2.24 5 5 5 5-2.24 5-5-2.24-5-5-5zm0 9c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4zM2 13h2c.55 0 1-.45 1-1s-.45-1-1-1H2c-.55 0-1 .45-1 1s.45 1 1 1zm18 0h2c.55 0 1-.45 1-1s-.45-1-1-1h-2c-.55 0-1 .45-1 1s.45 1 1 1zM11 2v2c0 .55.45 1 1 1s1-.45 1-1V2c0-.55-.45-1-1-1s-1 .45-1 1zm0 18v2c0 .55.45 1 1 1s1-.45 1-1v-2c0-.55-.45-1-1-1s-1 .45-1 1zM5.99 4.58c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0s.39-1.03 0-1.41L5.99 4.58zm12.37 12.37c-.39-.39-1.03-.39-1.41 0-.39.39-.39 1.03 0 1.41l1.06 1.06c.39.39 1.03.39 1.41 0 .39-.39.39-1.03 0-1.41l-1.06-1.06zm1.06-10.96c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06zM7.05 18.36c.39-.39.39-1.03 0-1.41-.39-.39-1.03-.39-1.41 0l-1.06 1.06c-.39.39-.39 1.03 0 1.41s1.03.39 1.41 0l1.06-1.06z"/></svg>
+        <svg id="moon-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9 9-4.03 9-9c0-.46-.04-.92-.1-1.36-.98 1.37-2.58 2.26-4.4 2.26-3.03 0-5.5-2.47-5.5-5.5 0-1.82.89-3.42 2.26-4.4-.44-.06-.9-.1-1.36-.1z"/></svg>
+    </button>
+
+    <div class="header">
+        <h3>AWS Cloud Club | ENSET</h3>
+        <h1>Experience liftoff<br>with AWS.</h1>
+    </div>
+
+    <div class="main-container">
+        <div class="card form-card">
+            <h2 style="margin-top:0; color: var(--text-header);">New Member Protocol</h2>
+            <div class="form-group"><label>FULL NAME</label><input type="text" id="name" placeholder="e.g. Amine Tazi"></div>
+            <div class="form-group"><label>EMAIL ADDRESS</label><input type="email" id="email" placeholder="student@enset.ma"></div>
+            <div class="flex-row">
+                <div class="flex-col form-group"><label>PHONE</label><input type="text" id="phone" placeholder="06 XX XX XX"></div>
+                <div class="flex-col form-group">
+                    <label>MAJOR</label>
+                    <select id="major">
+                        <option value="" disabled selected>Select Major</option>
+                        <optgroup label="Cycle d'Ingénieur">
+                            <option>BDCC-1</option><option>BDCC-2</option><option>BDCC-3</option>
+                            <option>GLSID-1</option><option>GLSID-2</option><option>GLSID-3</option>
+                            <option>II-BDCC-1</option><option>II-BDCC-2</option><option>II-BDCC-3</option>
+                            <option>GIL-1</option><option>GIL-2</option><option>GIL-3</option>
+                            <option>SEER-1</option><option>SEER-2</option><option>SEER-3</option>
+                            <option>GECSI-1</option><option>GECSI-2</option><option>GECSI-3</option>
+                        </optgroup>
+                        <optgroup label="Master & Prepa">
+                            <option>CCN (Master)</option><option>AP-1</option><option>AP-2</option>
+                        </optgroup>
+                        <option>Other</option>
+                    </select>
+                </div>
+            </div>
+            <button class="btn-submit" onclick="submitForm()">JOIN THE CLUB 🚀</button>
+        </div>
+
+        <div class="card qr-card">
+            <div class="qr-img-container"><img src="data:image/png;base64,{{ qr_code }}" alt="QR Code"></div>
+            <h3>Scan to Connect</h3>
+            <p>Access the AWS Portal immediately.</p>
+            <div class="counter-pill"><span id="count-display">{{ count }}</span> Members Joined</div>
+        </div>
+    </div>
+
+    <div class="modal-overlay" id="successModal" onclick="closeModal(event)">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-icon">🚀</div>
+            <h2 class="modal-title">Welcome Aboard!</h2>
+            <p class="modal-text" id="modal-message">Your data has been saved.</p>
+        </div>
+    </div>
+
+    <script>
+        // --- 1. THEME LOGIC ---
+        const body = document.body;
+        const sunIcon = document.getElementById('sun-icon');
+        const moonIcon = document.getElementById('moon-icon');
+        const currentTheme = localStorage.getItem('theme') || 'light';
+        body.setAttribute('data-theme', currentTheme);
+        updateThemeIcons(currentTheme);
+
+        function toggleTheme() {
+            const newTheme = body.getAttribute('data-theme') === 'light' ? 'dark' : 'light';
+            body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            updateThemeIcons(newTheme);
+            initParticles();
+        }
+
+        function updateThemeIcons(theme) {
+            if (theme === 'dark') { moonIcon.classList.add('hidden'); sunIcon.classList.remove('hidden'); } 
+            else { sunIcon.classList.add('hidden'); moonIcon.classList.remove('hidden'); }
+        }
+
+        // --- 2. MODAL LOGIC ---
+        const modal = document.getElementById('successModal');
+
+        function showModal(name) {
+            document.getElementById('modal-message').innerText = `Welcome to the AWS Club, ${name}!`;
+            modal.classList.add('active');
+        }
+
+        function closeModal(e) {
+            // TRIGGER THE PARTICLE SHOCKWAVE
+            triggerShockwave(e.clientX, e.clientY);
+            
+            // Close modal with slight delay
+            setTimeout(() => {
+                modal.classList.remove('active');
+            }, 100);
+        }
+
+        // --- 3. SUBMIT LOGIC ---
+        async function submitForm() {
+            const nameInput = document.getElementById('name');
+            const emailInput = document.getElementById('email');
+            const phoneInput = document.getElementById('phone');
+            const majorInput = document.getElementById('major');
+            const btn = document.querySelector('.btn-submit');
+
+            if(!nameInput.value || !emailInput.value || !majorInput.value) {
+                alert("Please fill in Name, Email, and Major.");
+                return;
+            }
+
+            const originalText = btn.innerText;
+            btn.innerText = "Launching...";
+            btn.disabled = true;
+
+            try {
+                const response = await fetch('/submit', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        name: nameInput.value, email: emailInput.value, 
+                        phone: phoneInput.value, major: majorInput.value 
+                    })
+                });
+
+                const result = await response.json();
+                if(result.status === 'success') {
+                    document.getElementById('count-display').innerText = result.new_count;
+                    confetti({ particleCount: 150, spread: 80, origin: { y: 0.6 }, colors: ['#4285f4', '#ffffff'] });
+                    showModal(result.name);
+                    nameInput.value = ''; emailInput.value = ''; phoneInput.value = '';
+                } else {
+                    alert("Error: " + result.message);
+                }
+            } catch (error) {
+                alert("Connection error.");
+            } finally {
+                btn.innerText = originalText;
+                btn.disabled = false;
+            }
+        }
+
+        // --- 4. ADVANCED PHYSICS ENGINE (SHOCKWAVE EDITION) ---
+        const canvas = document.getElementById('bg-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height, particles = [], mouse = { x: -1000, y: -1000 }, time = 0;
+
+        function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; initParticles(); }
+        
+        function initParticles() {
+            particles = [];
+            const numParticles = (width * height) / 1000; 
+            for (let i = 0; i < numParticles; i++) {
+                particles.push({
+                    x: Math.random() * width, y: Math.random() * height,
+                    baseX: Math.random() * width, 
+                    size: Math.random() * 2 + 0.5,
+                    // Standard Flow Velocities
+                    speedX: Math.random() * 0.5 - 0.25, 
+                    speedY: Math.random() * 0.5 - 0.25,
+                    offset: Math.random() * 100,
+                    // Physics Velocities (For Shockwave)
+                    vx: 0, 
+                    vy: 0
+                });
+            }
+        }
+
+        // The function to create the explosion
+        function triggerShockwave(x, y) {
+            particles.forEach(p => {
+                const dx = p.x - x;
+                const dy = p.y - y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                const forceDistance = 1000; // How big the explosion is
+                
+                if (distance < forceDistance) {
+                    const force = (forceDistance - distance) / forceDistance;
+                    const angle = Math.atan2(dy, dx);
+                    const power = 30; // How strong the push is
+                    
+                    // Add explosive velocity
+                    p.vx += Math.cos(angle) * force * power;
+                    p.vy += Math.sin(angle) * force * power;
+                }
+            });
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, width, height);
+            time += 0.005;
+            const particleRGB = getComputedStyle(body).getPropertyValue('--particle-color').trim();
+
+            particles.forEach(p => {
+                // 1. Natural Flow Motion
+                let moveX = p.speedX + Math.cos(time + p.y * 0.01 + p.offset) * 0.2;
+                let moveY = p.speedY + Math.sin(time + p.x * 0.01 + p.offset) * 0.2;
+
+                // 2. Add Shockwave Velocity
+                p.x += moveX + p.vx;
+                p.y += moveY + p.vy;
+
+                // 3. Friction (Slow down shockwave velocity to return to normal)
+                p.vx *= 0.95; // Decays by 5% every frame
+                p.vy *= 0.95;
+
+                // Wrap around screen
+                if (p.x < 0) p.x = width; if (p.x > width) p.x = 0;
+                if (p.y < 0) p.y = height; if (p.y > height) p.y = 0;
+
+                // Mouse Proximity (Glow)
+                let dx = mouse.x - p.x, dy = mouse.y - p.y;
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                let opacity = 0;
+                
+                if (distance < 250) {
+                     opacity = 1 - (distance / 250);
+                     p.currentSize = p.size * (1 + opacity * 0.8);
+                } else {
+                     opacity = Math.max(0, Math.sin(p.x * 0.002 + time) * Math.cos(p.y * 0.005 + time) * 0.1);
+                     p.currentSize = p.size;
+                }
+                
+                ctx.fillStyle = `rgba(${particleRGB}, ${opacity})`;
+                ctx.beginPath(); ctx.arc(p.x, p.y, p.currentSize, 0, Math.PI * 2); ctx.fill();
+            });
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener('resize', resize);
+        window.addEventListener('mousemove', e => { mouse.x = e.x; mouse.y = e.y; });
+        window.addEventListener('mouseleave', e => { mouse.x = -1000; mouse.y = -1000; });
+        resize(); animate();
+    </script>
+</body>
+</html>
