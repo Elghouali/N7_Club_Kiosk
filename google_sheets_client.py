@@ -7,6 +7,7 @@ from google.oauth2.service_account import Credentials
 from google.auth.transport.requests import Request
 from googleapiclient.discovery import build
 from datetime import datetime
+import json
 
 # Global sheet service instance
 _sheets_service = None
@@ -15,28 +16,32 @@ _sheet_name = None
 
 SCOPES = ['https://www.googleapis.com/auth/spreadsheets']
 
-def init_google_sheets(spreadsheet_id, sheet_name, credentials_path):
+def init_google_sheets(spreadsheet_id, sheet_name, credentials_json_str):
     """
     Initialize Google Sheets service with credentials.
     
     Args:
         spreadsheet_id: The Google Sheets spreadsheet ID
         sheet_name: The name of the sheet/tab to use
-        credentials_path: Path to the service account credentials JSON file
+        credentials_json_str: JSON string of service account credentials (for Render/cloud deployment)
     """
     global _sheets_service, _spreadsheet_id, _sheet_name
     
     try:
-        credentials = Credentials.from_service_account_file(
-            credentials_path, scopes=SCOPES
+        # Parse JSON string to dict
+        credentials_dict = json.loads(credentials_json_str)
+        
+        # Create credentials from service account info
+        credentials = Credentials.from_service_account_info(
+            credentials_dict, scopes=SCOPES
         )
         _sheets_service = build('sheets', 'v4', credentials=credentials)
         _spreadsheet_id = spreadsheet_id
         _sheet_name = sheet_name
         print(f"✓ Google Sheets initialized: {sheet_name}")
         return True
-    except FileNotFoundError:
-        raise Exception(f"Credentials file not found: {credentials_path}")
+    except json.JSONDecodeError:
+        raise Exception("Invalid JSON in credentials. Make sure GOOGLE_CREDENTIALS_JSON is valid JSON.")
     except Exception as e:
         raise Exception(f"Failed to initialize Google Sheets: {str(e)}")
 

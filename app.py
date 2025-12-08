@@ -16,11 +16,16 @@ app = Flask(__name__)
 AWS_LINK = "https://chat.whatsapp.com/DzEjjfEHm8E5FqU5ADNrJh"
 SPREADSHEET_ID = os.getenv("GOOGLE_SPREADSHEET_ID")
 SHEET_NAME = os.getenv("GOOGLE_SHEET_NAME", "Members")
-CREDENTIALS_PATH = os.getenv("GOOGLE_CREDENTIALS_PATH", "credentials.json")
+CREDENTIALS_JSON = os.getenv("GOOGLE_CREDENTIALS_JSON")
 
 # Initialize Google Sheets client on startup
 try:
-    init_google_sheets(SPREADSHEET_ID, SHEET_NAME, CREDENTIALS_PATH)
+    if not CREDENTIALS_JSON:
+        raise Exception("GOOGLE_CREDENTIALS_JSON environment variable not set")
+    if not SPREADSHEET_ID:
+        raise Exception("GOOGLE_SPREADSHEET_ID environment variable not set")
+    
+    init_google_sheets(SPREADSHEET_ID, SHEET_NAME, CREDENTIALS_JSON)
     SHEETS_INITIALIZED = True
 except Exception as e:
     print(f"Warning: Could not initialize Google Sheets: {e}")

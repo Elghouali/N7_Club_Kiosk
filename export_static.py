@@ -1,11 +1,16 @@
 #!/usr/bin/env python
 """
 Export static HTML for GitHub Pages deployment.
-Renders the Flask template with sample data and writes it to docs/index.html
+Renders the Flask template with live data from Google Sheets and writes it to docs/index.html.
+Works in GitHub Actions with secrets.
 """
 
 import os
+from dotenv import load_dotenv
 from app import app, generate_qr_base64
+
+# Load environment variables
+load_dotenv()
 
 # Configuration
 AWS_LINK = "https://chat.whatsapp.com/DzEjjfEHm8E5FqU5ADNrJh"
@@ -15,8 +20,15 @@ def export_static_html():
     """Render and export the index.html template to docs/index.html"""
     os.makedirs(OUTPUT_DIR, exist_ok=True)
     
-    # Sample data for static export
-    count = 0  # Default member count (will be updated when Flask runs)
+    # Try to get live member count from Google Sheets (optional)
+    count = 0
+    try:
+        from google_sheets_client import get_member_count
+        count = get_member_count()
+        print(f"✓ Exported with live count: {count} members")
+    except Exception as e:
+        print(f"Note: Using default count (0). Google Sheets access: {e}")
+    
     qr_code_data = generate_qr_base64(AWS_LINK)
     
     # Use Flask's test request context to render templates
