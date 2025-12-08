@@ -1,16 +1,31 @@
 from flask import Flask, render_template, request, jsonify
-import pandas as pd
 import os
 from datetime import datetime
 import qrcode
 from io import BytesIO
 import base64
+from dotenv import load_dotenv
+from google_sheets_client import init_google_sheets, add_member, get_member_count
+
+# Load environment variables
+load_dotenv()
 
 app = Flask(__name__)
 
 # --- CONFIGURATION ---
-EXCEL_FILE = "n7_club_members.xlsx"
 AWS_LINK = "https://chat.whatsapp.com/DzEjjfEHm8E5FqU5ADNrJh"
+SPREADSHEET_ID = os.getenv("GOOGLE_SPREADSHEET_ID")
+SHEET_NAME = os.getenv("GOOGLE_SHEET_NAME", "Members")
+CREDENTIALS_PATH = os.getenv("GOOGLE_CREDENTIALS_PATH", "credentials.json")
+
+# Initialize Google Sheets client on startup
+try:
+    init_google_sheets(SPREADSHEET_ID, SHEET_NAME, CREDENTIALS_PATH)
+    SHEETS_INITIALIZED = True
+except Exception as e:
+    print(f"Warning: Could not initialize Google Sheets: {e}")
+    print("The app will still run, but member data won't be saved.")
+    SHEETS_INITIALIZED = False
 
 # --- HELPER FUNCTIONS ---
 def generate_qr_base64(link):
@@ -31,14 +46,16 @@ def generate_qr_base64(link):
     return base64.b64encode(buffered.getvalue()).decode()
 
 def get_member_count():
-    """Reads the Excel file to get current count."""
-    if os.path.exists(EXCEL_FILE):
-        try:
-            df = pd.read_excel(EXCEL_FILE)
-            return len(df)
-        except:
-            return 0
-    return 0
+    """Get current count from Google Sheets."""
+    if not SHEETS_INITIALIZED:
+        return 0
+    try:
+        return get_member_count_from_sheets()
+    except:
+        return 0
+
+# Import the actual function with a different name to avoid recursion
+from google_sheets_client import get_member_count as get_member_count_from_sheets
 
 # --- ROUTES ---
 @app.route('/')
@@ -59,36 +76,16 @@ def submit():
     if not name or not email:
         return jsonify({"status": "error", "message": "Missing required fields"}), 400
 
-    # Create Data Structure
-    new_entry = {
-        "Timestamp": [datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
-        "Full Name": [name],
-        "Email": [email],
-        "Phone": [phone],
-        "Major": [major]
-    }
-    df_new = pd.DataFrame(new_entry)
+    if not SHEETS_INITIALIZED:
+        return jsonify({"status": "error", "message": "Google Sheets not configured. Please add credentials.json and .env file."}), 500
 
-    # Save to Excel safely
+    # Save to Google Sheets
     try:
-        if not os.path.exists(EXCEL_FILE):
-            df_new.to_excel(EXCEL_FILE, index=False)
-        else:
-            # Append to existing file
-            with pd.ExcelWriter(EXCEL_FILE, mode='a', engine='openpyxl', if_sheet_exists='overlay') as writer:
-                # Find the first empty row
-                try:
-                    reader = pd.read_excel(EXCEL_FILE, engine='openpyxl')
-                    start_row = len(reader) + 1
-                except pd.errors.EmptyDataError:
-                    start_row = 1
-                
-                df_new.to_excel(writer, index=False, header=False, startrow=start_row)
-                
-        new_count = get_member_count()
+        add_member(name, email, phone, major)
+        new_count = get_member_count_from_sheets()
         return jsonify({"status": "success", "new_count": new_count, "name": name})
-        
     except Exception as e:
+        print(f"Error adding member: {e}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
 if __name__ == '__main__':
