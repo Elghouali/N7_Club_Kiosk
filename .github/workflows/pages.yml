@@ -31,8 +31,16 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
       
+      - name: Create credentials file from secret
+        run: |
+          echo "${{ secrets.GOOGLE_CREDENTIALS_JSON }}" > credentials.json
+      
       - name: Generate static HTML
         run: python export_static.py
+        env:
+          GOOGLE_SPREADSHEET_ID: ${{ secrets.GOOGLE_SPREADSHEET_ID }}
+          GOOGLE_SHEET_NAME: Members
+          GOOGLE_CREDENTIALS_PATH: credentials.json
       
       - name: Setup Pages
         uses: actions/configure-pages@v4
